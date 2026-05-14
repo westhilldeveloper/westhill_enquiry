@@ -1,0 +1,81 @@
+generator client {
+  provider = "prisma-client-js"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model User {
+  id        Int      @id @default(autoincrement())
+  email     String   @unique
+  password  String
+  name      String
+  role      String   @default("USER")
+  createdAt DateTime @default(now())
+  enquiries Enquiry[]
+}
+
+model Enquiry {
+  id               Int             @id @default(autoincrement())
+  enqNo            Int             @unique @default(autoincrement())
+  date             DateTime        @default(now())
+  destination      String
+  adults           Int
+  kids             Int
+  travelStart      DateTime
+  travelEnd        DateTime
+  durationDays     Int
+  durationNights   Int
+  hotelCategory    String
+  roomSharing      String
+  extraBedRequired Boolean         @default(false)
+  userId           Int
+  user             User            @relation(fields: [userId], references: [id])
+  dmcQuotations    DMCQuotation[]
+  status           String          @default("WORKING")
+  createdAt        DateTime        @default(now())
+  updatedAt        DateTime        @updatedAt
+}
+
+model DMCQuotation {
+  id                  Int      @id @default(autoincrement())
+  enquiryId           Int
+  enquiry             Enquiry  @relation(fields: [enquiryId], references: [id], onDelete: Cascade)
+  dmcId               Int?
+  dmc                 Dmc?     @relation(fields: [dmcId], references: [id]) 
+  dmcName             String?
+  quotationRef        String
+  quotationDate       DateTime @default(now())
+  // New fields
+  adultCount          Int      // number of adults for this DMC (can override main form)
+  kidCount            Int      // number of kids for this DMC
+  adultRate           Float    // rate per adult
+  kidRate             Float    // rate per kid
+  adultMargin         Float    // margin per adult
+  kidMargin           Float    // margin per kid
+  foc                 Int      // free adults (only adults)
+  // Computed fields (stored for reporting)
+  actualAdultCharged  Int      // adultCount - foc
+  totalAdultCost      Float    // actualAdultCharged * adultRate + actualAdultCharged * adultMargin
+  totalKidCost        Float    // kidCount * kidRate + kidCount * kidMargin
+  subtotal            Float    // totalAdultCost + totalKidCost
+  gstAmount           Float    // (adultMargin*actualAdultCharged + kidMargin*kidCount) * 0.18
+  tcsAmount           Float    // (subtotal + gstAmount) * 0.02
+  finalPrice          Float    // subtotal + gstAmount + tcsAmount
+  isSelected          Boolean     @default(false)
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+}
+
+model Dmc {
+  id        Int      @id @default(autoincrement())
+  name      String
+  phone     String?
+  email     String?
+  location  String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  quotations DMCQuotation[]
+}
