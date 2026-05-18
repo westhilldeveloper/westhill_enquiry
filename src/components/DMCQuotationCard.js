@@ -9,41 +9,7 @@ export default function DMCQuotationCard({ dmc, index, defaultAdults, defaultKid
     return val !== undefined && val !== 0 ? val : defaultValue;
   };
 
-  // Local state – initialised directly from props
-  const [localAdultCount, setLocalAdultCount] = useState(() => getInitial('adultCount', defaultAdults));
-  const [localKidCount, setLocalKidCount] = useState(() => getInitial('kidCount', defaultKids));
-  const [localAdultRate, setLocalAdultRate] = useState(() => dmc.adultRate === 0 ? '' : dmc.adultRate);
-  const [localKidRate, setLocalKidRate] = useState(() => dmc.kidRate === 0 ? '' : dmc.kidRate);
-  const [localAdultMargin, setLocalAdultMargin] = useState(() => dmc.adultMargin === 0 ? '' : dmc.adultMargin);
-  const [localKidMargin, setLocalKidMargin] = useState(() => dmc.kidMargin === 0 ? '' : dmc.kidMargin);
-  const [localFoc, setLocalFoc] = useState(() => dmc.foc === 0 ? '' : dmc.foc);
-
-  // Keep local state in sync when dmc props change (e.g. after parent reset)
-  useEffect(() => {
-    setLocalAdultCount(getInitial('adultCount', defaultAdults));
-    setLocalKidCount(getInitial('kidCount', defaultKids));
-    setLocalAdultRate(dmc.adultRate === 0 ? '' : dmc.adultRate);
-    setLocalKidRate(dmc.kidRate === 0 ? '' : dmc.kidRate);
-    setLocalAdultMargin(dmc.adultMargin === 0 ? '' : dmc.adultMargin);
-    setLocalKidMargin(dmc.kidMargin === 0 ? '' : dmc.kidMargin);
-    setLocalFoc(dmc.foc === 0 ? '' : dmc.foc);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [dmc.adultCount, dmc.kidCount, dmc.adultRate, dmc.kidRate, dmc.adultMargin, dmc.kidMargin, dmc.foc, defaultAdults, defaultKids]);
-
-  const handleNumberChange = (field, value, setter) => {
-    setter(value);
-    const num = value === '' ? 0 : parseFloat(value);
-    if (isNaN(num)) return;
-    updateDMC(index, { [field]: num });
-  };
-
-  const handleCountChange = (field, value, setter) => {
-    setter(value);
-    const num = value === '' ? 0 : parseInt(value, 10);
-    if (isNaN(num)) return;
-    updateDMC(index, { [field]: num });
-  };
-
+ 
   // Raw values from props (not local state) – ensures calculations use latest parent values
   const adultCount = dmc.adultCount ?? defaultAdults;
   const kidCount = dmc.kidCount ?? defaultKids;
@@ -124,32 +90,50 @@ export default function DMCQuotationCard({ dmc, index, defaultAdults, defaultKid
           <div>
             <label className="block text-xs font-medium text-gray-500 mb-1">Adults</label>
             <input
-              type="number"
-              min="0"
-              value={localAdultCount}
-              onChange={(e) => handleCountChange('adultCount', e.target.value, setLocalAdultCount)}
-              className="w-full px-2 py-1.5 text-sm border rounded appearance-none [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
-            />
+  type="number"
+  min="0"
+  value={dmc.adultCount ?? ''}
+  onChange={(e) =>
+    updateDMC(index, {
+      adultCount: e.target.value === ''
+        ? ''
+        : parseInt(e.target.value, 10),
+    })
+  }
+  className="w-full px-2 py-1.5 text-sm border rounded appearance-none [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
+/>
           </div>
           <div>
             <label className="block text-xs font-medium text-gray-500 mb-1">Kids</label>
             <input
-              type="number"
-              min="0"
-              value={localKidCount}
-              onChange={(e) => handleCountChange('kidCount', e.target.value, setLocalKidCount)}
-              className="w-full px-2 py-1.5 text-sm border rounded appearance-none [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
-            />
+  type="number"
+  min="0"
+  value={dmc.kidCount ?? ''}
+  onChange={(e) =>
+    updateDMC(index, {
+      kidCount: e.target.value === ''
+        ? ''
+        : parseInt(e.target.value, 10),
+    })
+  }
+  className="w-full px-2 py-1.5 text-sm border rounded appearance-none [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
+/>
           </div>
           <div>
             <label className="block text-xs font-medium text-gray-500 mb-1">FOC (free adults)</label>
             <input
-              type="number"
-              min="0"
-              value={localFoc}
-              onChange={(e) => handleNumberChange('foc', e.target.value, setLocalFoc)}
-              className="w-full px-2 py-1.5 text-sm border rounded appearance-none [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
-            />
+  type="number"
+  min="0"
+  value={dmc.foc ?? ''}
+  onChange={(e) =>
+    updateDMC(index, {
+      foc: e.target.value === ''
+        ? ''
+        : parseFloat(e.target.value || 0),
+    })
+  }
+  className="w-full px-2 py-1.5 text-sm border rounded appearance-none [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
+/>
           </div>
         </div>
 
@@ -157,23 +141,36 @@ export default function DMCQuotationCard({ dmc, index, defaultAdults, defaultKid
         <div className="grid grid-cols-2 gap-2">
           <div>
             <label className="block text-xs font-medium text-gray-500 mb-1">Adult Rate (₹)</label>
-            <input
-              type="number"
-              step="0.01"
-              value={localAdultRate}
-              onChange={(e) => handleNumberChange('adultRate', e.target.value, setLocalAdultRate)}
-              className="w-full px-2 py-1.5 text-sm border rounded appearance-none [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
-            />
+           <input
+  type="number"
+  step="0.01"
+  value={dmc.adultRate ?? ''}
+  onChange={(e) =>
+    updateDMC(index, {
+      adultRate: e.target.value === ''
+        ? ''
+        : parseFloat(e.target.value),
+    })
+  }
+  className="w-full px-2 py-1.5 text-sm border rounded"
+/>
           </div>
           <div>
             <label className="block text-xs font-medium text-gray-500 mb-1">Adult Margin (₹)</label>
-            <input
-              type="number"
-              step="0.01"
-              value={localAdultMargin}
-              onChange={(e) => handleNumberChange('adultMargin', e.target.value, setLocalAdultMargin)}
-              className="w-full px-2 py-1.5 text-sm border rounded appearance-none [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
-            />
+           <input
+  type="number"
+  step="0.01"
+  value={dmc.adultMargin ?? ''}
+  onChange={(e) =>
+    updateDMC(index, {
+      
+      adultMargin: e.target.value === ''
+        ? ''
+        : parseFloat(e.target.value || 0),
+    })
+  }
+  className="w-full px-2 py-1.5 text-sm border rounded appearance-none [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
+/>
           </div>
         </div>
 
@@ -183,22 +180,34 @@ export default function DMCQuotationCard({ dmc, index, defaultAdults, defaultKid
             <div>
               <label className="block text-xs font-medium text-gray-500 mb-1">Kid Rate (₹)</label>
               <input
-                type="number"
-                step="0.01"
-                value={localKidRate}
-                onChange={(e) => handleNumberChange('kidRate', e.target.value, setLocalKidRate)}
-                className="w-full px-2 py-1.5 text-sm border rounded appearance-none [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
-              />
+  type="number"
+  step="0.01"
+  value={dmc.kidRate ?? ''}
+  onChange={(e) =>
+    updateDMC(index, {
+      kidRate: e.target.value === ''
+        ? ''
+        : parseFloat(e.target.value || 0),
+    })
+  }
+  className="w-full px-2 py-1.5 text-sm border rounded appearance-none [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
+/>
             </div>
             <div>
               <label className="block text-xs font-medium text-gray-500 mb-1">Kid Margin (₹)</label>
-              <input
-                type="number"
-                step="0.01"
-                value={localKidMargin}
-                onChange={(e) => handleNumberChange('kidMargin', e.target.value, setLocalKidMargin)}
-                className="w-full px-2 py-1.5 text-sm border rounded appearance-none [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
-              />
+             <input
+  type="number"
+  step="0.01"
+  value={dmc.kidMargin ?? ''}
+  onChange={(e) =>
+    updateDMC(index, {
+      kidMargin: e.target.value === ''
+        ? ''
+        : parseFloat(e.target.value || 0),
+    })
+  }
+  className="w-full px-2 py-1.5 text-sm border rounded appearance-none [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
+/>
             </div>
           </div>
         )}
