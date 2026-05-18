@@ -24,8 +24,19 @@ export default function DmcPage() {
   };
 
   useEffect(() => {
-    fetchDmcs();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    let isMounted = true;
+    const loadData = async () => {
+      try {
+        const res = await axios.get('/api/dmcs');
+        if (isMounted) setDmcs(res.data);
+      } catch (error) {
+        if (isMounted) toast.error('Failed to load DMCs');
+      } finally {
+        if (isMounted) setLoading(false);
+      }
+    };
+    loadData();
+    return () => { isMounted = false; };
   }, []);
 
   const handleOpenModal = (dmc = null) => {
