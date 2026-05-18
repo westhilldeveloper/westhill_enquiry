@@ -19,13 +19,38 @@ export default function PreviewPanel({ data, onSelectDmc, selectingDmcId }) {
     }
   };
 
-  const calculateDays = (start, end) => {
-    if (!start || !end) return 0;
-    const startDate = new Date(start);
-    const endDate = new Date(end);
-    const diffTime = Math.abs(endDate - startDate);
-    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-    return diffDays + 1;
+  // Helper to compute all derived values for a DMC (exactly as in DMCQuotationCard)
+  const computeDmcTotals = (dmc, enquiryAdults, enquiryKids, isInternational) => {
+    const adultCount = dmc.adultCount ?? enquiryAdults;
+    const kidCount = dmc.kidCount ?? enquiryKids;
+    const foc = dmc.foc || 0;
+    const adultRate = dmc.adultRate || 0;
+    const kidRate = dmc.kidRate || 0;
+    const adultMargin = dmc.adultMargin || 0;
+    const kidMargin = dmc.kidMargin || 0;
+
+    const payingAdults = Math.max(0, adultCount - foc);
+    const dmcPortionPerAdult = adultCount ? (adultRate * payingAdults) / adultCount : 0;
+    const adultPerHead = adultCount ? dmcPortionPerAdult + adultMargin : 0;
+    const totalAdultCost = adultPerHead * adultCount;
+    const kidPerHead = kidRate + kidMargin;
+    const totalKidCost = kidCount * kidPerHead;
+
+    const subtotal = totalAdultCost + totalKidCost;
+    const totalMargin = (adultMargin * adultCount) + (kidMargin * kidCount);
+    const totalRate = subtotal - totalMargin;
+    const gst = totalMargin * 0.18;
+    const tcs = isInternational ? (subtotal + gst) * 0.02 : 0;
+    const finalTotal = subtotal + gst + tcs;
+    const actualRatePerPax = (adultCount + kidCount) ? (payingAdults * adultRate + kidCount * kidRate) / (adultCount + kidCount) : 0;
+
+    return {
+      adultCount, kidCount, foc, payingAdults,
+      adultRate, kidRate, adultMargin, kidMargin,
+      dmcPortionPerAdult, adultPerHead, kidPerHead,
+      actualRatePerPax, totalRate, totalMargin,
+      subtotal, gst, tcs, finalTotal,
+    };
   };
 
   if (!data || !data.dmcQuotations?.length) {
@@ -36,14 +61,13 @@ export default function PreviewPanel({ data, onSelectDmc, selectingDmcId }) {
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
         </svg>
         <p className="text-sm font-medium">Live preview will appear here</p>
-        <p className="text-xs">Fill out the form to see real-time updates</p>
+        <p className="text-xs">Fill out the form to see real‑time updates</p>
       </div>
     );
   }
 
   const totalPax = (Number(data.adults) || 0) + (Number(data.kids) || 0);
-  // Detect international from any DMC having tcsAmount > 0 (or from parent flag)
-  const isInternational = data.isInternational === true || data.dmcQuotations.some(dmc => dmc.tcsAmount > 0);
+  const isInternational = data.isInternational === true;
 
   return (
     <div className="preview-panel p-2">
@@ -96,31 +120,15 @@ export default function PreviewPanel({ data, onSelectDmc, selectingDmcId }) {
           </div>
         </div>
 
-        {/* DMC Quotations */}
+        {/* DMC Quotations – full calculation summary like the card */}
         {data.dmcQuotations.map((dmc, idx) => {
-          const adultCount = dmc.adultCount ?? data.adults;
-          const kidCount = dmc.kidCount ?? data.kids;
-          const foc = dmc.foc || 0;
-          const payingAdults = Math.max(0, adultCount - foc);
-          const adultRate = dmc.adultRate || 0;
-          const kidRate = dmc.kidRate || 0;
-          const adultMargin = dmc.adultMargin || 0;
-          const kidMargin = dmc.kidMargin || 0;
-
-          // Use stored totals if available, otherwise fallback to calculated (should exist)
-          const subtotal = dmc.subtotal ?? 0;
-          const gst = dmc.gstAmount ?? 0;
-          const tcs = dmc.tcsAmount ?? 0;
-          const finalTotal = dmc.finalPrice ?? 0;
-          const totalMargin = (adultMargin * adultCount) + (kidMargin * kidCount);
-
-          // Per-head values
-          const overallPerHead = finalTotal / (adultCount + kidCount);
-          const subtotalPerHead = subtotal / (adultCount + kidCount);
-          const gstPerHead = gst / (adultCount + kidCount);
-          const tcsPerHead = tcs / (adultCount + kidCount);
-          const adultPerHead = adultCount > 0 ? (subtotal - (kidCount * (kidRate + kidMargin))) / adultCount : 0;
-          const kidPerHead = kidRate + kidMargin;
+          const {
+            adultCount, kidCount, foc, payingAdults,
+            adultRate, kidRate, adultMargin, kidMargin,
+            dmcPortionPerAdult, adultPerHead, kidPerHead,
+            actualRatePerPax, totalRate, totalMargin,
+            subtotal, gst, tcs, finalTotal,
+          } = computeDmcTotals(dmc, data.adults, data.kids, isInternational);
 
           const isSelected = dmc.isSelected === true;
 
@@ -134,20 +142,20 @@ export default function PreviewPanel({ data, onSelectDmc, selectingDmcId }) {
               <div className="bg-gray-50 px-3 py-1.5 border-b flex justify-between items-center gap-1">
                 <div className="flex items-center gap-2">
                   {data.dmcQuotations.length > 1 && onSelectDmc && (
-                     selectingDmcId === dmc.id ? (
-      <svg className="animate-spin h-3.5 w-3.5 text-blue-600" viewBox="0 0 24 24" fill="none">
-        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-      </svg>
-    ) : (
-      <input
-        type="radio"
-        name={`selectedDmc-${data.id}`}
-        checked={dmc.isSelected === true}
-        onChange={() => onSelectDmc(dmc.id)}
-        className="w-3.5 h-3.5 text-blue-600 cursor-pointer"
-      />
-    )
+                    selectingDmcId === dmc.id ? (
+                      <svg className="animate-spin h-3.5 w-3.5 text-blue-600" viewBox="0 0 24 24" fill="none">
+                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                      </svg>
+                    ) : (
+                      <input
+                        type="radio"
+                        name={`selectedDmc-${data.id}`}
+                        checked={dmc.isSelected === true}
+                        onChange={() => onSelectDmc(dmc.id)}
+                        className="w-3.5 h-3.5 text-blue-600 cursor-pointer"
+                      />
+                    )
                   )}
                   <div>
                     <div className="flex items-center gap-1">
@@ -158,26 +166,60 @@ export default function PreviewPanel({ data, onSelectDmc, selectingDmcId }) {
                   </div>
                 </div>
                 <div className="text-right">
-                  <div className="text-[10px] text-gray-500">Total</div>
+                  <div className="text-[10px] text-gray-500">Final Total</div>
                   <div className="text-sm font-bold text-green-700">₹{finalTotal.toLocaleString('en-IN')}</div>
                 </div>
               </div>
 
-              <div className="overflow-x-auto">
-                <table className="w-full text-[11px]">
-                  <tbody className="divide-y divide-gray-100">
-                    <tr><td className="px-2 py-1 font-medium">Adults / Kids</td><td className="px-2 py-1 text-right">{adultCount} / {kidCount}</td><td className="px-2 py-1 text-right text-gray-400">-</td></tr>
-                    <tr><td className="px-2 py-1 font-medium">FOC / Actual adults</td><td className="px-2 py-1 text-right">{foc} / {payingAdults}</td><td className="px-2 py-1 text-right text-gray-400">-</td></tr>
-                    <tr><td className="px-2 py-1">Adult Rate</td><td className="px-2 py-1 text-right">₹{adultRate.toLocaleString('en-IN')}</td><td className="px-2 py-1 text-right">₹{(adultRate * payingAdults).toLocaleString('en-IN')}</td></tr>
-                    <tr><td className="px-2 py-1">Kid Rate</td><td className="px-2 py-1 text-right">₹{kidRate.toLocaleString('en-IN')}</td><td className="px-2 py-1 text-right">₹{(kidRate * kidCount).toLocaleString('en-IN')}</td></tr>
-                    <tr><td className="px-2 py-1">Adult Margin</td><td className="px-2 py-1 text-right">₹{adultMargin.toLocaleString('en-IN')}</td><td className="px-2 py-1 text-right">₹{(adultMargin * adultCount).toLocaleString('en-IN')}</td></tr>
-                    <tr><td className="px-2 py-1">Kid Margin</td><td className="px-2 py-1 text-right">₹{kidMargin.toLocaleString('en-IN')}</td><td className="px-2 py-1 text-right">₹{(kidMargin * kidCount).toLocaleString('en-IN')}</td></tr>
-                    <tr className="font-semibold"><td className="px-2 py-1">Subtotal (before GST)</td><td className="px-2 py-1 text-right">₹{subtotalPerHead.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</td><td className="px-2 py-1 text-right">₹{subtotal.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</td></tr>
-                    <tr><td className="px-2 py-1">GST (18%)</td><td className="px-2 py-1 text-right">₹{gstPerHead.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</td><td className="px-2 py-1 text-right">₹{gst.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</td></tr>
-                    <tr><td className="px-2 py-1">TCS (2%)</td><td className="px-2 py-1 text-right">₹{tcsPerHead.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</td><td className="px-2 py-1 text-right">₹{tcs.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</td></tr>
-                    <tr className="bg-green-50 font-bold"><td className="px-2 py-1.5 text-green-800">Final Total</td><td className="px-2 py-1.5 text-right text-green-800">₹{overallPerHead.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</td><td className="px-2 py-1.5 text-right text-green-800">₹{finalTotal.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</td></tr>
-                  </tbody>
-                </table>
+              <div className="mt-2 bg-gray-50 rounded p-2 text-xs space-y-1">
+                <div className="flex justify-between">
+                  <span>Adults (total / paying):</span>
+                  <span>{adultCount} / {payingAdults}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span>Kids:</span>
+                  <span>{kidCount}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span>Adult Per‑Head Price (DMC):</span>
+                  <span>₹{dmcPortionPerAdult.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span>Adult Per‑Head Price (incl. Margin):</span>
+                  <span>₹{adultPerHead.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span>Kid Per‑Head Price (incl. Margin):</span>
+                  <span>₹{kidPerHead.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span>Actual Rate per PAX (DMC):</span>
+                  <span>₹{actualRatePerPax.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span>Total Rate:</span>
+                  <span>₹{totalRate.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span>Total Margin:</span>
+                  <span>₹{totalMargin.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
+                </div>
+                <div className="flex justify-between font-bold text-gray-800">
+                  <span>Subtotal (before GST/TCS):</span>
+                  <span>₹{subtotal.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span>GST (18% of margin):</span>
+                  <span>₹{gst.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span>TCS (2% of Subtotal+GST):</span>
+                  <span>₹{tcs.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
+                </div>
+                <div className="flex justify-between font-bold text-green-700 pt-1 border-t">
+                  <span>Final Total:</span>
+                  <span>₹{finalTotal.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
+                </div>
               </div>
             </div>
           );
