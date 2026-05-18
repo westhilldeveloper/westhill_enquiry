@@ -278,7 +278,7 @@ export default function EnquiryForm({ formData, setFormData, isEdit = false, enq
         </div>
         {formData.dmcQuotations.length === 0 ? (
           <div className="text-center py-6 text-gray-400 text-sm border-2 border-dashed border-gray-300 rounded-md">
-            No DMC quotations added yet. Click "Add DMC" to start.
+            No DMC quotations added yet. Click Add DMC to start.
           </div>
         ) : (
           <div className="space-y-3">

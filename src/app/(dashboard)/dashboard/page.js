@@ -85,7 +85,7 @@ export default function Dashboard() {
       };
       fetchEnquiry();
     }
-  }, [editId]);
+  }, [editId,formData, router]);
 
   const updateFormData = (newData) => {
     setFormData(newData);

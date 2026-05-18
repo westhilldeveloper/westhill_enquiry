@@ -4,6 +4,7 @@ import { signIn } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { toast } from 'react-hot-toast';
+import Image from 'next/image';
 
 export default function LoginPage() {
   const router = useRouter();
@@ -59,7 +60,7 @@ export default function LoginPage() {
         toast.success('Login successful!', { duration: 2000 });
         // Redirect after a short delay so the toast is visible on login page
         redirectTimerRef.current = setTimeout(() => {
-          router.push('/dashboard');
+          window.location.href = '/dashboard';
         }, 2000);
       }
     } catch (error) {
@@ -67,17 +68,19 @@ export default function LoginPage() {
     } finally {
       setLoading(false);
     }
-  }, [formData.email, formData.password, rememberMe, router]);
+  }, [formData.email, formData.password, rememberMe]);
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center p-4">
       <div className="w-full max-w-md">
         <div className="text-center mb-8">
-          <img 
-            src="/images/finLogo.png" 
-            alt="Westhill Tours & Travels Logo" 
-            className="h-16 w-auto mx-auto mb-4"
-          />
+          <Image
+  src="/images/finLogo.png"
+  alt="Westhill Tours & Travels Logo"
+  width={160}
+  height={64}
+  className="h-16 w-auto mx-auto mb-4"
+/>
           <p className="text-gray-500 mt-1">Welcome back! Please login to your account.</p>
         </div>
 
