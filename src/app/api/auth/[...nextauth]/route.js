@@ -40,6 +40,15 @@ export const authOptions = {
       session.user = token.user;
       return session;
     },
+    // ✅ Add this redirect callback to fix production redirects
+    async redirect({ url, baseUrl }) {
+      // If the URL is relative, resolve it against the base URL
+      if (url.startsWith('/')) return `${baseUrl}${url}`;
+      // If the URL is on the same origin, allow it
+      else if (new URL(url).origin === baseUrl) return url;
+      // Default fallback: go to the dashboard
+      return baseUrl;
+    },
   },
   session: {
     strategy: 'jwt',
