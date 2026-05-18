@@ -107,12 +107,10 @@ export default function EnquiryForm({ formData, setFormData, isEdit = false, enq
       if (isEdit && enquiryId) {
         await axios.put(`/api/enquiries/${enquiryId}`, payload);
         toast.success('Enquiry updated successfully!');
-        // Optionally redirect to history
         window.location.href = '/history';
       } else {
         await axios.post('/api/enquiries', payload);
         toast.success('Enquiry saved successfully!');
-        // Reset form after create
         setFormData({
           destination: '',
           adults: 0,
@@ -246,9 +244,17 @@ export default function EnquiryForm({ formData, setFormData, isEdit = false, enq
                   onChange={(e) => setFormData({ ...formData, isInternational: e.target.checked })}
                   className="w-3.5 h-3.5 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
                 />
-                <span className=" flex justify-center items-center text-xs text-gray-700">
-                   <Image src="/images/airplane.gif" alt="Add Icon" width={30} height={30} className="object-contain rounded-full" priority />
-                   International Trip</span>
+                <span className="flex justify-center items-center text-xs text-gray-700">
+                  <Image
+                    src="/images/airplane.gif"
+                    alt="Airplane icon"
+                    width={30}
+                    height={30}
+                    className="object-contain rounded-full"
+                    priority
+                  />
+                  International Trip
+                </span>
               </label>
             </div>
           </div>

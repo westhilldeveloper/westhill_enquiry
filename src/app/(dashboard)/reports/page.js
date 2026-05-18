@@ -1,5 +1,5 @@
 'use client';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import axios from 'axios';
 import { toast } from 'react-hot-toast';
 import ReportFilters from '@/components/ReportFilters';
@@ -27,25 +27,14 @@ const getDateRangeFromPeriod = (period, groupBy) => {
   return null;
 };
 
-export default function ReportsPage() {
+// ============================================
+// Custom hook for report data
+// ============================================
+function useReport(groupBy, dateRange) {
   const [reportData, setReportData] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [groupBy, setGroupBy] = useState('daily');
-  const [dateRange, setDateRange] = useState({
-    startDate: new Date(new Date().setDate(1)).toISOString().split('T')[0],
-    endDate: new Date().toISOString().split('T')[0],
-  });
-  const [selectedPeriod, setSelectedPeriod] = useState(null);
-  const [periodDetails, setPeriodDetails] = useState([]);
-  const [detailsLoading, setDetailsLoading] = useState(false);
 
-  const totalEnquiries = reportData.reduce((sum, item) => sum + (item.totalEnquiries || 0), 0);
-  const totalRevenue = reportData.reduce((sum, item) => sum + (item.totalRevenue || 0), 0);
-  const avgMargin = reportData.length
-    ? reportData.reduce((sum, item) => sum + (item.averageMargin || 0), 0) / reportData.length
-    : 0;
-
-  const fetchReport = async () => {
+  const fetchReport = useCallback(async () => {
     try {
       setLoading(true);
       const params = new URLSearchParams({
@@ -68,7 +57,63 @@ export default function ReportsPage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [groupBy, dateRange]);
+
+  useEffect(() => {
+    let isMounted = true;
+    const doFetch = async () => {
+      try {
+        if (isMounted) setLoading(true);
+        const params = new URLSearchParams({
+          groupBy,
+          startDate: dateRange.startDate,
+          endDate: dateRange.endDate,
+        });
+        const res = await axios.get(`/api/reports?${params.toString()}`);
+        const safeData = (res.data || []).map(item => ({
+          ...item,
+          totalRevenue: item.totalRevenue ?? 0,
+          averageMargin: item.averageMargin ?? 0,
+          totalEnquiries: item.totalEnquiries ?? 0,
+        }));
+        if (isMounted) setReportData(safeData);
+      } catch (error) {
+        if (isMounted) {
+          toast.error('Failed to load reports');
+          console.error(error);
+          setReportData([]);
+        }
+      } finally {
+        if (isMounted) setLoading(false);
+      }
+    };
+    doFetch();
+    return () => { isMounted = false; };
+  }, [groupBy, dateRange]);
+
+  return { reportData, loading, refetch: fetchReport };
+}
+
+// ============================================
+// Main component
+// ============================================
+export default function ReportsPage() {
+  const [groupBy, setGroupBy] = useState('daily');
+  const [dateRange, setDateRange] = useState({
+    startDate: new Date(new Date().setDate(1)).toISOString().split('T')[0],
+    endDate: new Date().toISOString().split('T')[0],
+  });
+  const [selectedPeriod, setSelectedPeriod] = useState(null);
+  const [periodDetails, setPeriodDetails] = useState([]);
+  const [detailsLoading, setDetailsLoading] = useState(false);
+
+  const { reportData, loading, refetch } = useReport(groupBy, dateRange);
+
+  const totalEnquiries = reportData.reduce((sum, item) => sum + (item.totalEnquiries || 0), 0);
+  const totalRevenue = reportData.reduce((sum, item) => sum + (item.totalRevenue || 0), 0);
+  const avgMargin = reportData.length
+    ? reportData.reduce((sum, item) => sum + (item.averageMargin || 0), 0) / reportData.length
+    : 0;
 
   const fetchPeriodDetails = async (period) => {
     const range = getDateRangeFromPeriod(period, groupBy);
@@ -102,40 +147,34 @@ export default function ReportsPage() {
     setPeriodDetails([]);
   };
 
-  useEffect(() => {
-    fetchReport();
-  }, [groupBy, dateRange]);
-
   const handleExport = async () => {
-  try {
-    const params = new URLSearchParams({
-      startDate: dateRange.startDate,
-      endDate: dateRange.endDate,
-    });
-    const response = await fetch(`/api/reports/export?${params.toString()}`);
-    
-    if (!response.ok) {
-      const errorData = await response.json();
-      throw new Error(errorData.error || 'Export failed');
+    try {
+      const params = new URLSearchParams({
+        startDate: dateRange.startDate,
+        endDate: dateRange.endDate,
+      });
+      const response = await fetch(`/api/reports/export?${params.toString()}`);
+      
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Export failed');
+      }
+      
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `enquiries_${dateRange.startDate}_to_${dateRange.endDate}.xlsx`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      window.URL.revokeObjectURL(url);
+      toast.success('Export started');
+    } catch (error) {
+      toast.error(error.message || 'Failed to export');
+      console.error(error);
     }
-    
-    // Get the blob from response
-    const blob = await response.blob();
-    // Create download link
-    const url = window.URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `enquiries_${dateRange.startDate}_to_${dateRange.endDate}.xlsx`;
-    document.body.appendChild(a);
-    a.click();
-    a.remove();
-    window.URL.revokeObjectURL(url);
-    toast.success('Export started');
-  } catch (error) {
-    toast.error(error.message || 'Failed to export');
-    console.error(error);
-  }
-};
+  };
 
   return (
     <div className="p-4 bg-gray-50 min-h-screen">
@@ -160,18 +199,19 @@ export default function ReportsPage() {
           setGroupBy={setGroupBy}
           dateRange={dateRange}
           setDateRange={setDateRange}
-          onApply={fetchReport}
+          onApply={refetch}
         />
       </div>
 
       {loading ? (
         <div className="bg-white rounded-md shadow-sm p-8 text-center">
-          <div className=" flex justify-center items-center text-gray-500 text-sm">
+          <div className="flex justify-center items-center text-gray-500 text-sm">
             <svg className="animate-spin h-6 w-6 text-blue-600 mr-2" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-    </svg>
-            Loading reports...</div>
+              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+            </svg>
+            Loading reports...
+          </div>
         </div>
       ) : reportData.length === 0 ? (
         <div className="bg-white rounded-md shadow-sm p-8 text-center">
@@ -277,23 +317,23 @@ export default function ReportsPage() {
                           {enq.dmcQuotations && enq.dmcQuotations.length > 0 ? (
                             enq.dmcQuotations.map((dmc, idx) => (
                               <div key={dmc.id} className="p-3 text-sm space-y-2">
-                               <div className="flex justify-between items-start">
-  <div>
-    <div className="flex items-center gap-2">
-      <p className="font-semibold text-gray-700">{dmc.dmcName || `DMC ${idx+1}`}</p>
-      {dmc.isSelected && (
-        <span className="text-[10px] font-medium bg-green-100 text-green-800 px-1.5 py-0.5 rounded-full">
-          ✓ Selected
-        </span>
-      )}
-    </div>
-    <p className="text-xs text-gray-400">Ref: {dmc.quotationRef || 'N/A'} | {new Date(dmc.quotationDate).toLocaleDateString()}</p>
-  </div>
-  <div className="text-right">
-    <p className="font-bold text-green-700">₹{dmc.finalPrice?.toLocaleString('en-IN')}</p>
-    <p className="text-xs text-gray-500">Final Total</p>
-  </div>
-</div>
+                                <div className="flex justify-between items-start">
+                                  <div>
+                                    <div className="flex items-center gap-2">
+                                      <p className="font-semibold text-gray-700">{dmc.dmcName || `DMC ${idx+1}`}</p>
+                                      {dmc.isSelected && (
+                                        <span className="text-[10px] font-medium bg-green-100 text-green-800 px-1.5 py-0.5 rounded-full">
+                                          ✓ Selected
+                                        </span>
+                                      )}
+                                    </div>
+                                    <p className="text-xs text-gray-400">Ref: {dmc.quotationRef || 'N/A'} | {new Date(dmc.quotationDate).toLocaleDateString()}</p>
+                                  </div>
+                                  <div className="text-right">
+                                    <p className="font-bold text-green-700">₹{dmc.finalPrice?.toLocaleString('en-IN')}</p>
+                                    <p className="text-xs text-gray-500">Final Total</p>
+                                  </div>
+                                </div>
                                 <div className="grid grid-cols-2 gap-x-3 gap-y-1 text-xs bg-gray-50 p-2 rounded">
                                   <div>Adults: {dmc.adultCount} (FOC: {dmc.foc})</div>
                                   <div>Kids: {dmc.kidCount}</div>

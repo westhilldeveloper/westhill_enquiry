@@ -1,5 +1,5 @@
 'use client';
-import { useState } from 'react';
+import { useState, useCallback, useEffect, useRef } from 'react';
 import { signIn } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
@@ -9,10 +9,30 @@ export default function LoginPage() {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
-  const [formData, setFormData] = useState({ email: '', password: '' });
-  const [rememberMe, setRememberMe] = useState(false);
+  const [formData, setFormData] = useState(() => {
+    if (typeof window !== 'undefined') {
+      const savedEmail = localStorage.getItem('rememberedEmail');
+      return { email: savedEmail || '', password: '' };
+    }
+    return { email: '', password: '' };
+  });
+  const [rememberMe, setRememberMe] = useState(() => {
+    if (typeof window !== 'undefined') {
+      return localStorage.getItem('rememberMe') === 'true';
+    }
+    return false;
+  });
 
-  const handleSubmit = async (e) => {
+  const redirectTimerRef = useRef(null);
+
+  // Cleanup timer on unmount
+  useEffect(() => {
+    return () => {
+      if (redirectTimerRef.current) clearTimeout(redirectTimerRef.current);
+    };
+  }, []);
+
+  const handleSubmit = useCallback(async (e) => {
     e.preventDefault();
     if (!formData.email || !formData.password) {
       toast.error('Please fill in all fields');
@@ -28,30 +48,39 @@ export default function LoginPage() {
       if (result?.error) {
         toast.error(result.error === 'No user found' ? 'Invalid email or password' : result.error);
       } else {
-        toast.success('Login successful!');
-       setTimeout(() => router.push('/dashboard'), 3000);
+        // Store email if "remember me" is checked
+        if (rememberMe) {
+          localStorage.setItem('rememberedEmail', formData.email);
+          localStorage.setItem('rememberMe', 'true');
+        } else {
+          localStorage.removeItem('rememberedEmail');
+          localStorage.setItem('rememberMe', 'false');
+        }
+        toast.success('Login successful!', { duration: 2000 });
+        // Redirect after a short delay so the toast is visible on login page
+        redirectTimerRef.current = setTimeout(() => {
+          router.push('/dashboard');
+        }, 2000);
       }
     } catch (error) {
       toast.error('Something went wrong. Please try again.');
     } finally {
       setLoading(false);
     }
-  };
+  }, [formData.email, formData.password, rememberMe, router]);
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center p-4">
       <div className="w-full max-w-md">
-        {/* Brand / Logo Area (optional) */}
         <div className="text-center mb-8">
           <img 
-    src="/images/finLogo.png" 
-    alt="Westhill Tours & Travels Logo" 
-    className="h-16 w-auto mx-auto mb-4"
-  />
+            src="/images/finLogo.png" 
+            alt="Westhill Tours & Travels Logo" 
+            className="h-16 w-auto mx-auto mb-4"
+          />
           <p className="text-gray-500 mt-1">Welcome back! Please login to your account.</p>
         </div>
 
-        {/* Login Card */}
         <div className="bg-white rounded-2xl shadow-xl p-6 md:p-8">
           <form onSubmit={handleSubmit} className="space-y-6">
             {/* Email Field */}
@@ -74,7 +103,7 @@ export default function LoginPage() {
               </div>
             </div>
 
-            {/* Password Field with toggle */}
+            {/* Password Field */}
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Password</label>
               <div className="relative">
@@ -110,7 +139,7 @@ export default function LoginPage() {
               </div>
             </div>
 
-            {/* Remember me & Forgot password */}
+            {/* Remember me */}
             <div className="flex items-center justify-between">
               <label className="flex items-center gap-2 cursor-pointer">
                 <input
@@ -121,9 +150,6 @@ export default function LoginPage() {
                 />
                 <span className="text-sm text-gray-600">Remember me</span>
               </label>
-              {/* <Link href="/forgot-password" className="text-sm text-blue-600 hover:underline">
-                Forgot password?
-              </Link> */}
             </div>
 
             {/* Login Button */}
@@ -146,7 +172,6 @@ export default function LoginPage() {
             </button>
           </form>
 
-          {/* Divider */}
           <div className="relative my-6">
             <div className="absolute inset-0 flex items-center">
               <div className="w-full border-t border-gray-300"></div>
@@ -156,12 +181,8 @@ export default function LoginPage() {
             </div>
           </div>
 
-          {/* Register Link */}
           <div className="text-center">
-            <Link
-              href="/register"
-              className="text-blue-600 hover:text-blue-800 font-medium transition"
-            >
+            <Link href="/register" className="text-blue-600 hover:text-blue-800 font-medium transition">
               Create an account →
             </Link>
           </div>

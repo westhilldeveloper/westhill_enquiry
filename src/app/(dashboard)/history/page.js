@@ -6,20 +6,16 @@ import EnquiryTable from '@/components/EnquiryTable';
 import PreviewPanel from '@/components/PreviewPanel';
 import { useSocket } from '@/lib/socket';
 
-export default function HistoryPage() {
+// ============================================
+// Custom hook for enquiries data management
+// ============================================
+function useEnquiries(initialFilters = { startDate: '', endDate: '', destination: '' }) {
   const [enquiries, setEnquiries] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [selectedEnquiry, setSelectedEnquiry] = useState(null);
-  const [previewKey, setPreviewKey] = useState(0);
-  const [selectingDmcId, setSelectingDmcId] = useState(null);
-  const [filters, setFilters] = useState({
-    startDate: '',
-    endDate: '',
-    destination: '',
-  });
+  const [filters, setFilters] = useState(initialFilters);
   const socket = useSocket();
 
-  const fetchEnquiries = async () => {
+  const fetchEnquiries = useCallback(async () => {
     try {
       setLoading(true);
       const params = new URLSearchParams();
@@ -33,20 +29,54 @@ export default function HistoryPage() {
     } finally {
       setLoading(false);
     }
-  };
-
-  useEffect(() => {
-    fetchEnquiries();
   }, [filters]);
 
+  // Fetch when filters change
+  useEffect(() => {
+    let isMounted = true;
+    const doFetch = async () => {
+      try {
+        setLoading(true);
+        const params = new URLSearchParams();
+        if (filters.startDate) params.append('startDate', filters.startDate);
+        if (filters.endDate) params.append('endDate', filters.endDate);
+        if (filters.destination) params.append('destination', filters.destination);
+        const res = await axios.get(`/api/enquiries?${params.toString()}`);
+        if (isMounted) setEnquiries(res.data.enquiries);
+      } catch (error) {
+        if (isMounted) toast.error('Failed to load enquiries');
+      } finally {
+        if (isMounted) setLoading(false);
+      }
+    };
+    doFetch();
+    return () => { isMounted = false; };
+  }, [filters]);
+
+  // Socket listener for new enquiries
   useEffect(() => {
     if (!socket) return;
-    socket.on('enquiry-created', () => {
+    const handleNewEnquiry = () => {
       fetchEnquiries();
       toast.success('New enquiry added!');
-    });
-    return () => socket.off('enquiry-created');
-  }, [socket]);
+    };
+    socket.on('enquiry-created', handleNewEnquiry);
+    return () => {
+      socket.off('enquiry-created', handleNewEnquiry);
+    };
+  }, [socket, fetchEnquiries]);
+
+  return { enquiries, loading, filters, setFilters, refetch: fetchEnquiries };
+}
+
+// ============================================
+// Main component
+// ============================================
+export default function HistoryPage() {
+  const { enquiries, loading, filters, setFilters, refetch } = useEnquiries();
+  const [selectedEnquiry, setSelectedEnquiry] = useState(null);
+  const [previewKey, setPreviewKey] = useState(0);
+  const [selectingDmcId, setSelectingDmcId] = useState(null);
 
   const handleSelectEnquiry = useCallback((enquiry) => {
     setSelectedEnquiry(enquiry);
@@ -57,7 +87,7 @@ export default function HistoryPage() {
     try {
       await axios.patch(`/api/enquiries/${enqId}`, { status: newStatus });
       toast.success('Status updated');
-      fetchEnquiries(); // refresh list
+      await refetch(); // refresh list
       if (selectedEnquiry?.id === enqId) {
         // refresh selected enquiry data
         const res = await axios.get(`/api/enquiries/${enqId}`);
@@ -70,21 +100,19 @@ export default function HistoryPage() {
   };
 
   const handleSelectDmc = async (enqId, dmcId) => {
-  setSelectingDmcId(dmcId);                // show loader
-  try {
-    const res = await axios.patch(`/api/enquiries/${enqId}`, { selectedDmcId: dmcId });
-    // ✅ Use the response directly (it already contains the updated enquiry)
-    setSelectedEnquiry(res.data);
-    setPreviewKey(prev => prev + 1);
-    toast.success('Selected DMC updated');
-    // Refresh the list so the table also shows the new selection (optional)
-    fetchEnquiries();
-  } catch (err) {
-    toast.error(err.response?.data?.error || 'Failed to select DMC');
-  } finally {
-    setSelectingDmcId(null);               // hide loader
-  }
-};
+    setSelectingDmcId(dmcId);
+    try {
+      const res = await axios.patch(`/api/enquiries/${enqId}`, { selectedDmcId: dmcId });
+      setSelectedEnquiry(res.data);
+      setPreviewKey(prev => prev + 1);
+      toast.success('Selected DMC updated');
+      await refetch(); // refresh the table list
+    } catch (err) {
+      toast.error(err.response?.data?.error || 'Failed to select DMC');
+    } finally {
+      setSelectingDmcId(null);
+    }
+  };
 
   return (
     <div className="p-4 h-full">
@@ -124,7 +152,7 @@ export default function HistoryPage() {
               </div>
             </div>
             <button
-              onClick={fetchEnquiries}
+              onClick={refetch}
               className="mt-3 w-full bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium py-1.5 rounded-md transition"
             >
               Apply Filters
@@ -136,11 +164,10 @@ export default function HistoryPage() {
             {loading ? (
               <div className="flex justify-center items-center text-center py-8 text-gray-500 text-sm">
                 <svg className="animate-spin h-6 w-6 text-blue-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                        </svg>
+                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                </svg>
                 Loading enquiries...
-              
               </div>
             ) : (
               <EnquiryTable
@@ -157,10 +184,11 @@ export default function HistoryPage() {
           {loading ? (
             <div className="flex justify-center items-center text-center h-full text-gray-500 text-sm">
               <svg className="animate-spin h-6 w-6 text-blue-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                        </svg>
-              Loading preview...</div>
+                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+              </svg>
+              Loading preview...
+            </div>
           ) : selectedEnquiry ? (
             <PreviewPanel
               key={previewKey}
