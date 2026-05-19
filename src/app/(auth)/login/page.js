@@ -79,7 +79,7 @@ export default function LoginPage() {
   alt="Westhill Tours & Travels Logo"
   width={160}
   height={64}
-  className="h-16 w-auto mx-auto mb-4"
+  className="mx-auto mb-4"
 />
           <p className="text-gray-500 mt-1">Welcome back! Please login to your account.</p>
         </div>
