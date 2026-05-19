@@ -49,11 +49,12 @@ export async function POST(request) {
       const kidRate = parseFloat(dmc.kidRate) || 0;
       const adultMargin = parseFloat(dmc.adultMargin) || 0;
       const kidMargin = parseFloat(dmc.kidMargin) || 0;
-
-      const totalAdultCost = actualAdultCharged * (adultRate + adultMargin);
+      const PAXRate = adultRate * (adultCount - foc)/ adultCount;
+      // const totalAdultCost = actualAdultCharged * (adultRate + adultMargin);
+      const totalAdultCost = adultCount * (PAXRate + adultMargin);
       const totalKidCost = kidCount * (kidRate + kidMargin);
       const subtotal = totalAdultCost + totalKidCost;
-      const totalMargin = (actualAdultCharged * adultMargin) + (kidCount * kidMargin);
+      const totalMargin = (adultCount * adultMargin) + (kidCount * kidMargin);
       const gstAmount = totalMargin * 0.18;
       const tcsAmount = (subtotal + gstAmount) * 0.02;
       const finalPrice = subtotal + gstAmount + tcsAmount;

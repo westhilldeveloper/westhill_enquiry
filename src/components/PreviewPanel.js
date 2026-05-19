@@ -10,6 +10,22 @@ export default function PreviewPanel({ data, onSelectDmc, selectingDmcId }) {
   const { data: session } = useSession();
   const currentUser = session?.user;
 
+  console.log("data====>", data);
+
+  // ✅ Guard against null/undefined data
+  if (!data) {
+    return (
+      <div className="flex flex-col items-center justify-center h-full text-center text-gray-400 p-4">
+        <svg className="w-12 h-12 mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+        </svg>
+        <p className="text-sm font-medium">Loading preview...</p>
+        <p className="text-xs">Please wait</p>
+      </div>
+    );
+  }
+
   const formatDate = (date) => {
     if (!date) return '-';
     try {
@@ -19,8 +35,13 @@ export default function PreviewPanel({ data, onSelectDmc, selectingDmcId }) {
     }
   };
 
+  // Determine if trip is international (TCS applies)
+  const isInternational = data.isInternational ?? (
+    data.destination && !['INDIA', 'DOMESTIC'].includes(data.destination.toUpperCase())
+  );
+
   // Helper to compute all derived values for a DMC (exactly as in DMCQuotationCard)
-  const computeDmcTotals = (dmc, enquiryAdults, enquiryKids, isInternational) => {
+  const computeDmcTotals = (dmc, enquiryAdults, enquiryKids, isIntl) => {
     const adultCount = dmc.adultCount ?? enquiryAdults;
     const kidCount = dmc.kidCount ?? enquiryKids;
     const foc = dmc.foc || 0;
@@ -40,7 +61,7 @@ export default function PreviewPanel({ data, onSelectDmc, selectingDmcId }) {
     const totalMargin = (adultMargin * adultCount) + (kidMargin * kidCount);
     const totalRate = subtotal - totalMargin;
     const gst = totalMargin * 0.18;
-    const tcs = isInternational ? (subtotal + gst) * 0.02 : 0;
+    const tcs = isIntl ? (subtotal + gst) * 0.02 : 0;
     const finalTotal = subtotal + gst + tcs;
     const actualRatePerPax = (adultCount + kidCount) ? (payingAdults * adultRate + kidCount * kidRate) / (adultCount + kidCount) : 0;
 
@@ -53,7 +74,7 @@ export default function PreviewPanel({ data, onSelectDmc, selectingDmcId }) {
     };
   };
 
-  if (!data || !data.dmcQuotations?.length) {
+  if (!data.dmcQuotations?.length) {
     return (
       <div className="flex flex-col items-center justify-center h-full text-center text-gray-400 p-4">
         <svg className="w-12 h-12 mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -67,7 +88,6 @@ export default function PreviewPanel({ data, onSelectDmc, selectingDmcId }) {
   }
 
   const totalPax = (Number(data.adults) || 0) + (Number(data.kids) || 0);
-  const isInternational = data.isInternational === true;
 
   return (
     <div className="preview-panel p-2">

@@ -35,7 +35,7 @@ export default function Dashboard() {
       if (editId) router.push('/history'); // after creation, go to history
     });
     return () => socket.off('enquiry-created');
-  }, [socket, editId, router]);
+  }, [socket, editId, ]);
 
   // Fetch enquiry if editing
   useEffect(() => {
@@ -85,7 +85,7 @@ export default function Dashboard() {
       };
       fetchEnquiry();
     }
-  }, [editId,formData, router]);
+  }, [editId, ]);
 
   const updateFormData = (newData) => {
     setFormData(newData);

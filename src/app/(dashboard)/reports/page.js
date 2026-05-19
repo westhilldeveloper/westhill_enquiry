@@ -175,7 +175,7 @@ export default function ReportsPage() {
       console.error(error);
     }
   };
-
+console.log("proudct deails====>", periodDetails)
   return (
     <div className="p-4 bg-gray-50 min-h-screen">
       {/* Header */}
