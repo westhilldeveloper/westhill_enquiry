@@ -2,11 +2,13 @@
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { signOut } from 'next-auth/react';
-import { Home, History, BarChart3, LogOut, Users } from 'lucide-react';
+import { Home, History, BarChart3, LogOut, Users, Menu, X } from 'lucide-react';
 import Image from 'next/image';
+import { useState } from 'react';
 
 export default function Sidebar() {
   const pathname = usePathname();
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
   const navItems = [
     { href: '/dashboard', label: 'New Enquiry', icon: Home },
@@ -21,8 +23,9 @@ export default function Sidebar() {
     }
   };
 
-  return (
-    <aside className="w-64 bg-white border-r border-gray-200 shadow-sm flex flex-col">
+  // Sidebar content (shared between desktop and mobile)
+  const SidebarContent = () => (
+    <>
       <div className="p-4 border-b border-gray-100 flex justify-center">
         <Image
           src="/images/finLogo.png"
@@ -41,6 +44,7 @@ export default function Sidebar() {
             <Link
               key={item.href}
               href={item.href}
+              onClick={() => setIsMobileMenuOpen(false)}
               className={`flex items-center gap-3 px-5 py-2.5 text-sm font-medium transition-colors ${
                 isActive
                   ? 'bg-blue-50 text-blue-700 border-r-2 border-blue-600'
@@ -62,6 +66,49 @@ export default function Sidebar() {
           <span>Logout</span>
         </button>
       </div>
-    </aside>
+    </>
+  );
+
+  return (
+    <>
+      {/* Mobile hamburger button */}
+      <button
+        onClick={() => setIsMobileMenuOpen(true)}
+        className="fixed top-4 left-4 z-50 p-2 bg-white rounded-md shadow-md lg:hidden"
+        aria-label="Open menu"
+      >
+        <Menu size={24} />
+      </button>
+
+      {/* Desktop sidebar (always visible on large screens) */}
+      <aside className="hidden lg:flex w-64 bg-white border-r border-gray-200 shadow-sm flex-col h-screen sticky top-0">
+        <SidebarContent />
+      </aside>
+
+      {/* Mobile drawer overlay */}
+      {isMobileMenuOpen && (
+        <div
+          className="fixed inset-0 bg-black bg-opacity-50 z-50 lg:hidden"
+          onClick={() => setIsMobileMenuOpen(false)}
+        />
+      )}
+
+      {/* Mobile sidebar drawer */}
+      <aside
+        className={`fixed top-0 left-0 h-full w-64 bg-white shadow-xl z-50 transform transition-transform duration-300 lg:hidden ${
+          isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full'
+        }`}
+      >
+        <div className="flex justify-end p-2">
+          <button
+            onClick={() => setIsMobileMenuOpen(false)}
+            className="p-2 text-gray-500"
+          >
+            <X size={24} />
+          </button>
+        </div>
+        <SidebarContent />
+      </aside>
+    </>
   );
 }

@@ -37,16 +37,16 @@ export default function DMCQuotationCard({ dmc, index, defaultAdults, defaultKid
   return (
     <div className="border border-gray-200 rounded-lg p-4 bg-white shadow-sm relative">
       <button
-        type="button"
-        onClick={() => removeDMC(index)}
-        className="absolute top-[-5px] right-[-5px] text-red-400 hover:text-red-600 text-lg font-bold"
-      >
-        <Image src="/images/close.png" alt="Remove DMC" width={20} height={20} />
-      </button>
+  type="button"
+  onClick={() => removeDMC(index)}
+  className="absolute top-2 right-2 p-1 bg-red-100 rounded-full text-red-500 hover:bg-red-200"
+>
+  <Image src="/images/close.png" alt="Remove DMC" width={16} height={16} />
+</button>
 
       <div className="space-y-3">
         {/* Basic Info row */}
-        <div className="grid grid-cols-1 gap-2">
+       <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
           <div>
             <select
               value={dmc.dmcId ?? ''}
@@ -63,7 +63,7 @@ export default function DMCQuotationCard({ dmc, index, defaultAdults, defaultKid
               ))}
             </select>
           </div>
-          <div className="grid grid-cols-2 gap-2">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
             <div>
               <label className="block text-xs font-medium text-gray-500 mb-1">Quotation Ref</label>
               <input
