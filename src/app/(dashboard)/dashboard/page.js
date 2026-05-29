@@ -80,7 +80,7 @@ export default function Dashboard() {
       };
       fetchEnquiry();
     }
-  }, [editId, router, formData]); // Note: added formData dependency but careful with infinite loop – better to avoid. We'll fix below.
+  }, [editId, router, ]); 
 
   const updateFormData = (newData) => {
     setFormData(newData);

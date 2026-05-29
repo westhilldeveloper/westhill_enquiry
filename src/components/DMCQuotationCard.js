@@ -35,7 +35,7 @@ export default function DMCQuotationCard({ dmc, index, defaultAdults, defaultKid
   const actualRatePerPax = (adultCount + kidCount) ? (payingAdults * adultRate + kidCount * kidRate) / (adultCount + kidCount) : 0;
 
   return (
-    <div className="border border-gray-200 rounded-lg p-4 bg-white shadow-sm relative">
+    <div className="border border-gray-200 rounded-lg p-1 bg-white shadow-sm relative">
       <button
   type="button"
   onClick={() => removeDMC(index)}
@@ -48,6 +48,7 @@ export default function DMCQuotationCard({ dmc, index, defaultAdults, defaultKid
         {/* Basic Info row */}
        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
           <div>
+             <label className="block text-xs font-medium text-gray-500 mb-1">DMC Name</label>
             <select
               value={dmc.dmcId ?? ''}
               onChange={(e) => {

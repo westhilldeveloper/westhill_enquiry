@@ -135,7 +135,7 @@ export default function EnquiryForm({ formData, setFormData, isEdit = false, enq
   return (
     <form onSubmit={handleSubmit} className="space-y-5">
       {/* Basic Information Card */}
-      <div className="bg-gray-50 rounded-md p-4 border border-gray-200">
+      <div className="bg-gray-50 rounded-md p-1 border border-gray-200">
         <h2 className="text-md font-semibold text-gray-800 mb-3 flex items-center gap-2">
           <span className="w-1 h-5 bg-blue-600 rounded-full"></span>
           Trip Details
@@ -262,7 +262,7 @@ export default function EnquiryForm({ formData, setFormData, isEdit = false, enq
       </div>
 
       {/* DMC Quotations Section */}
-      <div className="bg-gray-50 rounded-md p-4 border border-gray-200">
+      <div className="bg-gray-50 rounded-md p-1 border border-gray-200">
         <div className="flex justify-between items-center mb-3">
           <h2 className="text-md font-semibold text-gray-800 flex items-center gap-2">
             <span className="w-1 h-5 bg-green-600 rounded-full"></span>
