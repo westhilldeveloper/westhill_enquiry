@@ -39,7 +39,7 @@ export default function DMCQuotationCard({ dmc, index, defaultAdults, defaultKid
       <button
   type="button"
   onClick={() => removeDMC(index)}
-  className="absolute top-2 right-2 p-1 bg-red-100 rounded-full text-red-500 hover:bg-red-200"
+  className="absolute -top-3 right-2 p-1 bg-red-100 rounded-full text-red-500 hover:bg-red-200"
 >
   <Image src="/images/close.png" alt="Remove DMC" width={16} height={16} />
 </button>
